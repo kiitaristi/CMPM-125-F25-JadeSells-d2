@@ -1,32 +1,19 @@
-.icon {
-  width: 64px;
-  vertical-align: top;
-  border: 1px solid salmon;
-}
-
-.background {
-  background: #ffffff;
-  font-size: 20px;
-  padding: 10px;
-  border-radius: 10px;
+body {
+  background-color: #ffffff;
   display: flex;
   flex-direction: column;
   align-items: center;
-  height: 100vh;
-  gap: 20px; /* space between elements */
-  text-align: center;
-}
-
-.divider{
-  display: flex;
   justify-content: center;
-  align-items: center;
-  height: 40vh;
-  margin: 30;
+  height: 100vh;
 }
 
-.myCanvas{
-  width: 256px; 
-  height: 256px; 
+.canvas {
   border: 5px solid #000000;
-} 
+  margin: 0 auto;
+}
+
+.clearbutton {
+  width: 50;
+  height: 10;
+  margin: 20px;
+}
