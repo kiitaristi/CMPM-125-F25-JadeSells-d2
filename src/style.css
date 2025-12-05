@@ -12,8 +12,14 @@ body {
   margin: 0 auto;
 }
 
-.button {
+.stateButton, .toolButton {
+  font-weight: bold;
   width: 50;
   height: 10;
   margin: 10px;
+}
+
+.selectedTool {
+  background-color: #76e3a5;
+  border-color: #1b693d;
 }
