@@ -41,9 +41,9 @@ const toolBar = document.querySelector(".toolbar")! as HTMLDivElement;
 
 type StickerKey = { label: string; sticker: string };
 const stickers: StickerKey[] = [
-  { label: "Heart", sticker: "❤️" },
-  { label: "Smiley", sticker: "😂" },
-  { label: "Exclamation", sticker: "❗❗" },
+  { label: "Heart", sticker: "🖤" },
+  { label: "Skull", sticker: "💀" },
+  { label: "Exclamation", sticker: "⁉️" },
 ];
 
 const redrawEvent = new Event("drawing-changed");
@@ -189,7 +189,7 @@ refreshStickerButtons();
 function addCustomSticker() {
   const newSticker = prompt(
     "Enter a new sticker (e.g. emoji character):",
-    "🌟",
+    "🎸",
   );
   if (newSticker && newSticker.trim() !== "") {
     stickers.push({ label: "Custom", sticker: newSticker.trim() });
