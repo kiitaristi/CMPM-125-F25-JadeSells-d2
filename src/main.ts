@@ -10,8 +10,9 @@ document.body.innerHTML = `
     <button id="undobutton" class="stateButton">Undo</button>
     <button id="redobutton" class="stateButton">Redo</button>
   </div>
-  <div class="toolbar" style="text-align:center; margin-bottom:10px;">
-  </div>
+  <div class="toolbar" style="text-align:center; margin-bottom:10px;"></div>
+  <div>
+    <button id="exportbutton">Export PNG</button>
 `;
 
 // ---------------------
@@ -24,6 +25,7 @@ interface Function {
 
 const canvasElems: Function[] = [];
 const redoFunc: Function[] = [];
+const exportFunc: Function[] = [];
 
 type ToolType = "thin" | "thick" | "sticker";
 let toolCursor: ToolPreview | null = null;
@@ -243,7 +245,6 @@ canvas.addEventListener("mousemove", (e) => {
   if (currFunc && currTool !== "sticker") {
     currFunc.draw!(offsetX, offsetY);
   } else if (!currFunc) {
-    // Only show preview when not drawing
     toolCursor = new ToolPreview(offsetX, offsetY);
   }
 
@@ -265,6 +266,7 @@ canvas.addEventListener("mousedown", (e) => {
   if (currFunc) {
     redoFunc.splice(0, redoFunc.length);
     canvasElems.push(currFunc);
+    exportFunc.push(currFunc);
   }
 
   canvas.dispatchEvent(redrawEvent);
@@ -285,36 +287,54 @@ canvas.addEventListener("tool-moved", redraw);
 clearButton.addEventListener("click", () => {
   canvasElems.splice(0, canvasElems.length);
   redoFunc.splice(0, redoFunc.length);
+  exportFunc.splice(0, exportFunc.length);
   canvas.dispatchEvent(redrawEvent);
 });
 
 undoButton.addEventListener("click", () => {
-  if (canvasElems.length > 0) {
-    redoFunc.push(canvasElems.pop()!);
-    canvas.dispatchEvent(redrawEvent);
-  }
+  if (canvasElems.length > 0) redoFunc.push(canvasElems.pop()!);
+  if (exportFunc.length > 0) redoFunc.push(exportFunc.pop()!);
+
+  canvas.dispatchEvent(redrawEvent);
 });
 
 redoButton.addEventListener("click", () => {
   if (redoFunc.length > 0) {
     canvasElems.push(redoFunc.pop()!);
-    canvas.dispatchEvent(redrawEvent);
+    exportFunc.push(redoFunc.pop()!);
   }
+
+  canvas.dispatchEvent(redrawEvent);
 });
 
-/*
-thinButton.addEventListener("click", () => selectTool(3, thinButton));
-thickButton.addEventListener("click", () => selectTool(6, thickButton));
-heartButton.addEventListener(
-  "click",
-  () => selectTool(0, heartButton, heartButton.textContent),
-);
-smileyButton.addEventListener(
-  "click",
-  () => selectTool(0, smileyButton, smileyButton.textContent),
-);
-exclaimButton.addEventListener(
-  "click",
-  () => selectTool(0, exclaimButton, exclaimButton.textContent),
-);
-*/
+const exportButton = document.getElementById("exportbutton")!;
+document.body.appendChild(exportButton);
+
+exportButton.innerHTML = "Export PNG";
+exportButton.addEventListener("click", () => {
+  document.body.className += " disabled";
+  const tempCanvas: HTMLCanvasElement = document.createElement("canvas");
+  tempCanvas.width = canvas.height * 4;
+  tempCanvas.height = canvas.width * 4;
+  canvas.replaceWith(tempCanvas);
+  const tempCTX: CanvasRenderingContext2D | null = tempCanvas.getContext("2d");
+
+  if (tempCTX) {
+    tempCTX.scale(4, 4);
+    tempCTX.fillStyle = "white";
+    tempCTX.fillRect(0, 0, tempCanvas.height, tempCanvas.width);
+    tempCTX.lineCap = "round";
+    for (let i: number = 0; i < canvasElems.length; ++i) {
+      canvasElems[i].display(
+        tempCTX,
+      );
+    }
+    const anchor = document.createElement("a");
+    anchor.href = tempCanvas.toDataURL("image/png");
+    anchor.download = "sketchpad.png";
+    anchor.click();
+  }
+
+  tempCanvas.replaceWith(canvas);
+  document.body.className = "";
+});

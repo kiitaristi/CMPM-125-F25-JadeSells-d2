@@ -13,7 +13,7 @@ body {
   cursor: none;
 }
 
-.stateButton, .toolButton {
+.stateButton, .toolButton, .stickerButton {
   font-weight: bold;
   width: 50;
   height: 10;
