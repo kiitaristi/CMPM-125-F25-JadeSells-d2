@@ -5,13 +5,18 @@ import "./style.css";
 document.body.innerHTML = `
   <h1 style="color:black;">Title</h1>
   <canvas id="canvas" width=256 height=256 class="canvas"></canvas>
-  <button id="clearbutton" class="clearbutton">Clear</button>
+  <div>
+    <button id="clearbutton" class="button">Clear</button>
+    <button id="undobutton" class="button">Undo</button>
+    <button id="redobutton" class="button">Redo</button>
+  </div>
 `;
 
 type Point = { x: number; y: number };
 type Line = Point[];
 
 const lines: Line[] = [];
+const redoLines: Line[] = [];
 
 let currLine: Line | null = null;
 
@@ -31,6 +36,7 @@ canvas.addEventListener("mousedown", (e) => {
   currLine = [];
   currLine.push({ x: cursor.x, y: cursor.x });
   currLine.shift();
+  redoLines.splice(0, redoLines.length);
   lines.push(currLine);
 
   canvas.dispatchEvent(redrawEvent);
@@ -75,4 +81,22 @@ const clearButton = document.getElementById("clearbutton")!;
 clearButton.addEventListener("click", () => {
   lines.splice(0, lines.length);
   redraw();
+});
+
+const undoButton = document.getElementById("undobutton")!;
+
+undoButton.addEventListener("click", () => {
+  if (lines.length > 0) {
+    redoLines.push(lines.pop()!);
+    canvas.dispatchEvent(redrawEvent);
+  }
+});
+
+const redoButton = document.getElementById("redobutton")!;
+
+redoButton.addEventListener("click", () => {
+  if (redoLines.length > 0) {
+    lines.push(redoLines.pop()!);
+    canvas.dispatchEvent(redrawEvent);
+  }
 });

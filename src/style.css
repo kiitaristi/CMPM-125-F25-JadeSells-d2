@@ -12,8 +12,8 @@ body {
   margin: 0 auto;
 }
 
-.clearbutton {
+.button {
   width: 50;
   height: 10;
-  margin: 20px;
+  margin: 10px;
 }
