@@ -10,13 +10,23 @@ document.body.innerHTML = `
     <button id="undobutton" class="stateButton">Undo</button>
     <button id="redobutton" class="stateButton">Redo</button>
   </div>
+  <div>
+    <button id="heartbutton" class="stateButton">❤️</button>
+    <button id="smileybutton" class="stateButton">😂</button>
+    <button id="exclaimbutton" class="stateButton">❗❗</button>
+  </div>
   <div id="weightbuttons">
     <button id="thinmarkerbutton" class="toolButton">Thin Marker</button>
     <button id="thickmarkerbutton" class="toolButton">Thick Marker</button>
   </div>
 `;
 
-class Marker {
+interface Function {
+  draw?(x: number, y: number): void;
+  display(ctx: CanvasRenderingContext2D): void;
+}
+
+class Marker implements Function {
   private pointData: { x: number; y: number }[] = [];
   private lineWeight: number;
 
@@ -44,15 +54,45 @@ class Marker {
   }
 }
 
-class ToolPreview {
+class Sticker implements Function {
+  x: number;
+  y: number;
+  sticker: string;
+  constructor(xArg: number, yArg: number, stickerArg: string) {
+    this.x = xArg;
+    this.y = yArg;
+    this.sticker = stickerArg;
+  }
+
+  draw(xPos: number, yPos: number) {
+    this.x = xPos;
+    this.y = yPos;
+  }
+
+  display(ctx: CanvasRenderingContext2D) {
+    ctx.font = "24px serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(this.sticker, this.x, this.y);
+  }
+}
+
+class ToolPreview implements Function {
   x: number;
   y: number;
   weight: number;
+  sticker?: string | null;
 
-  constructor(xArg: number, yArg: number, weightArg: number) {
+  constructor(
+    xArg: number,
+    yArg: number,
+    weightArg: number,
+    stickerArg?: string | null,
+  ) {
     this.x = xArg;
     this.y = yArg;
     this.weight = weightArg;
+    this.sticker = stickerArg ?? null;
   }
 
   updatePosition(xPos: number, yPos: number) {
@@ -60,24 +100,36 @@ class ToolPreview {
     this.y = yPos;
   }
 
-  updateWeight(weightArg: number) {
+  updateProperties(weightArg: number, stickerArg?: string | null) {
     this.weight = weightArg;
+    this.sticker = stickerArg ?? null;
   }
 
   display(ctx: CanvasRenderingContext2D) {
-    ctx.beginPath();
-    ctx.strokeStyle = "black";
-    ctx.lineWidth = this.weight;
-    ctx.arc(this.x, this.y, this.weight / 4, 0, Math.PI * 2);
-    ctx.stroke();
+    ctx.save();
+    if (this.sticker != null) {
+      ctx.font = "24px serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.globalAlpha = 0.5;
+      ctx.fillText(this.sticker, this.x, this.y);
+    } else {
+      ctx.beginPath();
+      ctx.strokeStyle = "black";
+      ctx.lineWidth = this.weight;
+      ctx.arc(this.x, this.y, this.weight / 4, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
   }
 }
 
-const lines: Marker[] = [];
-const redoLines: Marker[] = [];
+const lines: Function[] = [];
+const redoFunc: Function[] = [];
 
-let currLine: Marker | null = null;
+let currFunc: Function | null = null;
 let currWeight: number = 2;
+let currSticker: string | null = null;
 
 let toolCursor: ToolPreview | null = null;
 let mouseDown: boolean = false;
@@ -95,21 +147,27 @@ canvas.addEventListener("mouseleave", () => {
 });
 
 canvas.addEventListener("mouseenter", (e) => {
-  toolCursor = new ToolPreview(e.offsetX, e.offsetY, currWeight);
+  toolCursor = new ToolPreview(
+    e.offsetX,
+    e.offsetY,
+    currWeight,
+    currSticker,
+  );
   canvas.dispatchEvent(toolEvent);
 });
 
 canvas.addEventListener("mousemove", (e) => {
   const { offsetX, offsetY } = e;
 
-  if (!toolCursor) toolCursor = new ToolPreview(offsetX, offsetY, currWeight);
-  else {
+  if (!toolCursor) {
+    toolCursor = new ToolPreview(offsetX, offsetY, currWeight, currSticker);
+  } else {
     toolCursor.updatePosition(offsetX, offsetY);
-    toolCursor.updateWeight(currWeight);
+    toolCursor.updateProperties(currWeight, currSticker);
   }
   canvas.dispatchEvent(toolEvent);
 
-  if (mouseDown && currLine) currLine.draw(offsetX, offsetY);
+  if (mouseDown && currFunc && currFunc.draw) currFunc.draw(offsetX, offsetY);
 
   canvas.dispatchEvent(redrawEvent);
 });
@@ -118,16 +176,20 @@ canvas.addEventListener("mousedown", (e) => {
   mouseDown = true;
   const { offsetX, offsetY } = e;
 
-  currLine = new Marker(offsetX, offsetY, currWeight);
-  redoLines.splice(0, redoLines.length);
-  lines.push(currLine);
+  if (!currSticker) currFunc = new Marker(offsetX, offsetY, currWeight);
+  else currFunc = new Sticker(offsetX, offsetY, currSticker);
+
+  if (currFunc) {
+    redoFunc.splice(0, redoFunc.length);
+    lines.push(currFunc);
+  }
 
   canvas.dispatchEvent(redrawEvent);
 });
 
 canvas.addEventListener("mouseup", () => {
   mouseDown = false;
-  currLine = null;
+  currFunc = null;
 
   canvas.dispatchEvent(redrawEvent);
 });
@@ -146,7 +208,7 @@ const clearButton = document.getElementById("clearbutton")!;
 
 clearButton.addEventListener("click", () => {
   lines.splice(0, lines.length);
-  redoLines.splice(0, redoLines.length);
+  redoFunc.splice(0, redoFunc.length);
   canvas.dispatchEvent(redrawEvent);
 });
 
@@ -154,7 +216,7 @@ const undoButton = document.getElementById("undobutton")!;
 
 undoButton.addEventListener("click", () => {
   if (lines.length > 0) {
-    redoLines.push(lines.pop()!);
+    redoFunc.push(lines.pop()!);
     canvas.dispatchEvent(redrawEvent);
   }
 });
@@ -162,8 +224,8 @@ undoButton.addEventListener("click", () => {
 const redoButton = document.getElementById("redobutton")!;
 
 redoButton.addEventListener("click", () => {
-  if (redoLines.length > 0) {
-    lines.push(redoLines.pop()!);
+  if (redoFunc.length > 0) {
+    lines.push(redoFunc.pop()!);
     canvas.dispatchEvent(redrawEvent);
   }
 });
@@ -172,15 +234,41 @@ const thinButton = document.getElementById("thinmarkerbutton")!;
 thinButton.classList.add("selectedTool");
 
 const thickButton = document.getElementById("thickmarkerbutton")!;
+const heartButton = document.getElementById("heartbutton")!;
+const smileyButton = document.getElementById("smileybutton")!;
+const exclaimButton = document.getElementById("exclaimbutton")!;
 
-function selectTool(weight: number, button: HTMLElement) {
+function selectTool(
+  weight: number,
+  button: HTMLElement,
+  emoji?: string | null,
+) {
   currWeight = weight;
+
+  if (emoji) currSticker = emoji;
+  else currSticker = null;
 
   thinButton.classList.remove("selectedTool");
   thickButton.classList.remove("selectedTool");
+  heartButton.classList.remove("selectedTool");
+  smileyButton.classList.remove("selectedTool");
+  exclaimButton.classList.remove("selectedTool");
   button.classList.add("selectedTool");
-  if (toolCursor) toolCursor.updateWeight(currWeight);
+
+  if (toolCursor) toolCursor.updateProperties(currWeight, currSticker);
 }
 
 thinButton.addEventListener("click", () => selectTool(3, thinButton));
 thickButton.addEventListener("click", () => selectTool(6, thickButton));
+heartButton.addEventListener(
+  "click",
+  () => selectTool(0, heartButton, heartButton.textContent),
+);
+smileyButton.addEventListener(
+  "click",
+  () => selectTool(0, smileyButton, smileyButton.textContent),
+);
+exclaimButton.addEventListener(
+  "click",
+  () => selectTool(0, exclaimButton, exclaimButton.textContent),
+);
