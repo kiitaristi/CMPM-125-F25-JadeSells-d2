@@ -12,13 +12,34 @@ document.body.innerHTML = `
   </div>
 `;
 
-type Point = { x: number; y: number };
-type Line = Point[];
+class Marker {
+  private pointData: { x: number; y: number }[] = [];
 
-const lines: Line[] = [];
-const redoLines: Line[] = [];
+  constructor(xStart: number, yStart: number) {
+    this.pointData.push({ x: xStart, y: yStart });
+  }
 
-let currLine: Line | null = null;
+  draw(x: number, y: number) {
+    this.pointData.push({ x, y });
+  }
+
+  display(ctx: CanvasRenderingContext2D) {
+    if (this.pointData.length > 1) {
+      ctx.beginPath();
+      const { x, y } = this.pointData[0];
+      ctx.moveTo(x, y);
+      for (const p of this.pointData) {
+        ctx.lineTo(p.x, p.y);
+      }
+      ctx.stroke();
+    }
+  }
+}
+
+const lines: Marker[] = [];
+const redoLines: Marker[] = [];
+
+let currLine: Marker | null = null;
 
 const cursor = { active: false, x: 0, y: 0 };
 
@@ -33,9 +54,7 @@ canvas.addEventListener("mousedown", (e) => {
   cursor.x = e.offsetX;
   cursor.y = e.offsetY;
 
-  currLine = [];
-  currLine.push({ x: cursor.x, y: cursor.x });
-  currLine.shift();
+  currLine = new Marker(cursor.x, cursor.y);
   redoLines.splice(0, redoLines.length);
   lines.push(currLine);
 
@@ -47,7 +66,7 @@ canvas.addEventListener("mousemove", (e) => {
 
   cursor.x = e.offsetX;
   cursor.y = e.offsetY;
-  currLine.push({ x: cursor.x, y: cursor.y });
+  currLine.draw(cursor.x, cursor.y);
 
   canvas.dispatchEvent(redrawEvent);
 });
@@ -61,17 +80,7 @@ canvas.addEventListener("mouseup", () => {
 
 function redraw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  for (const line of lines) {
-    if (line.length > 1) {
-      ctx.beginPath();
-      const { x, y } = line[0];
-      ctx.moveTo(x, y);
-      for (const { x, y } of line) {
-        ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-    }
-  }
+  for (const line of lines) line.display(ctx);
 }
 
 canvas.addEventListener("drawing-changed", redraw);
@@ -80,7 +89,8 @@ const clearButton = document.getElementById("clearbutton")!;
 
 clearButton.addEventListener("click", () => {
   lines.splice(0, lines.length);
-  redraw();
+  redoLines.splice(0, redoLines.length);
+  canvas.dispatchEvent(redrawEvent);
 });
 
 const undoButton = document.getElementById("undobutton")!;
