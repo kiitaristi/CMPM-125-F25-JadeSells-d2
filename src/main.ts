@@ -20,12 +20,13 @@ document.body.innerHTML = `
 // ---------------------
 interface Function {
   draw?(x: number, y: number): void;
-  display(ctx: CanvasRenderingContext2D): void;
+  display(ctx: CanvasRenderingContext2D, colorArg?: string): void;
 }
 
 const canvasElems: Function[] = [];
 const redoFunc: Function[] = [];
 const exportFunc: Function[] = [];
+const colorRand: string[] = ["black", "red", "blue", "green", "pink"];
 
 type ToolType = "thin" | "thick" | "sticker";
 let toolCursor: ToolPreview | null = null;
@@ -75,8 +76,8 @@ class Marker implements Function {
     this.pointData.push({ x, y });
   }
 
-  display(ctx: CanvasRenderingContext2D) {
-    ctx.strokeStyle = "black";
+  display(ctx: CanvasRenderingContext2D, colorArg?: string) {
+    ctx.strokeStyle = colorArg!;
     ctx.lineWidth = this.lineWeight;
     if (this.pointData.length > 1) {
       ctx.beginPath();
@@ -105,8 +106,9 @@ class Sticker implements Function {
     this.y = yPos;
   }
 
-  display(ctx: CanvasRenderingContext2D) {
+  display(ctx: CanvasRenderingContext2D, colorArg?: string) {
     ctx.font = "24px serif";
+    ctx.shadowColor = colorArg!;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(this.sticker, this.x, this.y);
@@ -127,7 +129,7 @@ class ToolPreview implements Function {
     this.y = yPos;
   }
 
-  display(ctx: CanvasRenderingContext2D) {
+  display(ctx: CanvasRenderingContext2D, colorArg?: string) {
     if (currTool === "sticker" && currSticker) {
       ctx.font = "24px serif";
       ctx.textAlign = "center";
@@ -137,7 +139,7 @@ class ToolPreview implements Function {
       ctx.beginPath();
       const radius = currTool === "thin" ? 2 : 5;
       ctx.arc(this.x, this.y, radius / 4, 0, Math.PI * 2);
-      ctx.strokeStyle = "black";
+      ctx.strokeStyle = colorArg!;
       ctx.stroke();
     }
     ctx.restore();
@@ -149,9 +151,13 @@ class ToolPreview implements Function {
 // ----------------
 function redraw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  for (const elem of canvasElems) elem.display(ctx);
+  for (const elem of canvasElems) {
+    elem.display(ctx);
+  }
 
-  if (toolCursor) toolCursor.display(ctx);
+  if (toolCursor) {
+    toolCursor.display(ctx);
+  }
 }
 
 function createButton(
@@ -221,6 +227,16 @@ function updateSelect() {
       if (b.textContent === currSticker) b.classList.add("selectedTool");
     });
   }
+  for (const elem of canvasElems) {
+    elem.display(
+      ctx,
+      colorRand[Math.floor(Math.random() * (colorRand.length - 1))],
+    );
+  }
+  toolCursor!.display(
+    ctx,
+    colorRand[Math.floor(Math.random() * (colorRand.length - 1))],
+  );
 }
 
 // ----------------------
