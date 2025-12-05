@@ -14,8 +14,6 @@ document.body.innerHTML = `
     <button id="thinmarkerbutton" class="toolButton">Thin Marker</button>
     <button id="thickmarkerbutton" class="toolButton">Thick Marker</button>
   </div>
-  <div style="color: black; font-size: 50; margin: 10px;">Current line weight: <span id="weight">Thin Marker</span>
-  </div>
 `;
 
 class Marker {
@@ -46,64 +44,89 @@ class Marker {
   }
 }
 
+class ToolPreview {
+  x: number;
+  y: number;
+  weight: number;
+
+  constructor(xArg: number, yArg: number, weightArg: number) {
+    this.x = xArg;
+    this.y = yArg;
+    this.weight = weightArg;
+  }
+
+  updatePosition(xPos: number, yPos: number) {
+    this.x = xPos;
+    this.y = yPos;
+  }
+
+  updateWeight(weightArg: number) {
+    this.weight = weightArg;
+  }
+
+  display(ctx: CanvasRenderingContext2D) {
+    ctx.beginPath();
+    ctx.strokeStyle = "black";
+    ctx.lineWidth = this.weight;
+    ctx.arc(this.x, this.y, this.weight / 4, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
 const lines: Marker[] = [];
 const redoLines: Marker[] = [];
 
 let currLine: Marker | null = null;
 let currWeight: number = 2;
 
-const cursor = { active: false, x: 0, y: 0 };
+let toolCursor: ToolPreview | null = null;
+let mouseDown: boolean = false;
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 const ctx = canvas.getContext("2d")!;
 if (!ctx) throw new Error("Failed to get canvas context");
 
-const weightDesc = document.getElementById("weight")!;
-
-const thinButton = document.getElementById("thinmarkerbutton")!;
-thinButton.classList.add("selectedTool");
-
-const thickButton = document.getElementById("thickmarkerbutton")!;
-
-function selectTool(weight: number, button: HTMLElement) {
-  currWeight = weight;
-
-  thinButton.classList.remove("selectedTool");
-  thickButton.classList.remove("selectedTool");
-  button.classList.add("selectedTool");
-
-  weightDesc.textContent = button.textContent;
-}
-
-thinButton.addEventListener("click", () => selectTool(2, thinButton));
-thickButton.addEventListener("click", () => selectTool(5, thickButton));
-
 const redrawEvent = new Event("drawing-changed");
+const toolEvent = new Event("tool-moved");
+
+canvas.addEventListener("mouseleave", () => {
+  toolCursor = null;
+  canvas.dispatchEvent(toolEvent);
+});
+
+canvas.addEventListener("mouseenter", (e) => {
+  toolCursor = new ToolPreview(e.offsetX, e.offsetY, currWeight);
+  canvas.dispatchEvent(toolEvent);
+});
+
+canvas.addEventListener("mousemove", (e) => {
+  const { offsetX, offsetY } = e;
+
+  if (!toolCursor) toolCursor = new ToolPreview(offsetX, offsetY, currWeight);
+  else {
+    toolCursor.updatePosition(offsetX, offsetY);
+    toolCursor.updateWeight(currWeight);
+  }
+  canvas.dispatchEvent(toolEvent);
+
+  if (mouseDown && currLine) currLine.draw(offsetX, offsetY);
+
+  canvas.dispatchEvent(redrawEvent);
+});
 
 canvas.addEventListener("mousedown", (e) => {
-  cursor.active = true;
-  cursor.x = e.offsetX;
-  cursor.y = e.offsetY;
+  mouseDown = true;
+  const { offsetX, offsetY } = e;
 
-  currLine = new Marker(cursor.x, cursor.y, currWeight);
+  currLine = new Marker(offsetX, offsetY, currWeight);
   redoLines.splice(0, redoLines.length);
   lines.push(currLine);
 
   canvas.dispatchEvent(redrawEvent);
 });
 
-canvas.addEventListener("mousemove", (e) => {
-  if (!cursor.active || !currLine) return;
-
-  cursor.x = e.offsetX;
-  cursor.y = e.offsetY;
-  currLine.draw(cursor.x, cursor.y);
-
-  canvas.dispatchEvent(redrawEvent);
-});
-
 canvas.addEventListener("mouseup", () => {
-  cursor.active = false;
+  mouseDown = false;
   currLine = null;
 
   canvas.dispatchEvent(redrawEvent);
@@ -112,9 +135,12 @@ canvas.addEventListener("mouseup", () => {
 function redraw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   for (const line of lines) line.display(ctx);
+
+  if (toolCursor) toolCursor.display(ctx);
 }
 
 canvas.addEventListener("drawing-changed", redraw);
+canvas.addEventListener("tool-moved", redraw);
 
 const clearButton = document.getElementById("clearbutton")!;
 
@@ -141,3 +167,20 @@ redoButton.addEventListener("click", () => {
     canvas.dispatchEvent(redrawEvent);
   }
 });
+
+const thinButton = document.getElementById("thinmarkerbutton")!;
+thinButton.classList.add("selectedTool");
+
+const thickButton = document.getElementById("thickmarkerbutton")!;
+
+function selectTool(weight: number, button: HTMLElement) {
+  currWeight = weight;
+
+  thinButton.classList.remove("selectedTool");
+  thickButton.classList.remove("selectedTool");
+  button.classList.add("selectedTool");
+  if (toolCursor) toolCursor.updateWeight(currWeight);
+}
+
+thinButton.addEventListener("click", () => selectTool(3, thinButton));
+thickButton.addEventListener("click", () => selectTool(6, thickButton));

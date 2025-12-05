@@ -10,6 +10,7 @@ body {
 .canvas {
   border: 5px solid #000000;
   margin: 0 auto;
+  cursor: none;
 }
 
 .stateButton, .toolButton {
